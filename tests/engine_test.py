@@ -48,7 +48,7 @@ class TestHarnessEvolutionEngine(unittest.TestCase):
                 BenchmarkTask("task_4", "tb", "Solve task 4", verification_script="test -f solution.py"),
             ]
             benchmark = TerminalBenchAdapter(custom_tasks=tasks)
-            agent = PiCodingAgent()
+            agent = PiCodingAgent(mode="simulated")
             proposer = DedicatedProposer(proposer_model_name="claude-3-7-sonnet")
 
             engine = HarnessEvolutionEngine(
@@ -96,7 +96,7 @@ class TestHarnessEvolutionEngine(unittest.TestCase):
                 BenchmarkTask("task_norm_4", "tb", "Solve normal task", verification_script="test -f solution.py"),
             ]
             benchmark = TerminalBenchAdapter(custom_tasks=tasks)
-            agent = PiCodingAgent()
+            agent = PiCodingAgent(mode="simulated")
             proposer = DedicatedProposer(proposer_model_name="claude-3-7-sonnet")
 
             engine = HarnessEvolutionEngine(

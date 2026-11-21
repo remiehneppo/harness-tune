@@ -25,8 +25,17 @@ class PiCodingAgent(AbstractCodingAgent):
     - Custom skills / extensions from the harness manifest
     """
 
-    def __init__(self, pi_executable: str = "pi"):
+    def __init__(
+        self,
+        pi_executable: Optional[str] = "pi",
+        mode: str = "auto",  # "auto", "real", "simulated"
+        ssh_host: Optional[str] = None,
+        provider: Optional[str] = None,
+    ):
         self.pi_executable = pi_executable
+        self.mode = mode
+        self.ssh_host = ssh_host
+        self.provider = provider
 
     @staticmethod
     def _get_enhanced_env() -> Dict[str, str]:
@@ -90,11 +99,15 @@ class PiCodingAgent(AbstractCodingAgent):
         max_steps = runtime_config.get("max_steps", 25)
         max_tool_errors = runtime_config.get("max_consecutive_same_tool_errors", 2)
 
-        # 2. Check if pi CLI is available in enhanced PATH
+        # 2. Check if pi CLI is available in enhanced PATH and not in simulated mode
         env = self._get_enhanced_env()
-        pi_bin = shutil.which(self.pi_executable, path=env.get("PATH"))
+        pi_bin = (
+            shutil.which(self.pi_executable, path=env.get("PATH"))
+            if (self.pi_executable and self.mode != "simulated")
+            else None
+        )
 
-        if pi_bin:
+        if pi_bin and self.mode != "simulated":
             # Run real Pi CLI in headless mode
             cmd = [
                 pi_bin,
