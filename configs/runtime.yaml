@@ -1,0 +1,8 @@
+# Runtime Policy
+max_steps: 30
+timeout_per_step_seconds: 30
+max_consecutive_same_tool_errors: 2
+loop_detection_window: 3
+cost_budget_usd: 0.50
+early_stop_on_repeated_failure: true
+compaction_strategy: "phase_boundary"

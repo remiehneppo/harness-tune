@@ -1,0 +1,7 @@
+# Pi Coding Agent Runtime Policy
+max_steps: 25
+timeout_per_step_seconds: 30
+max_consecutive_same_tool_errors: 2
+early_stop_on_repeated_failure: true
+loop_detection_window: 3
+cost_budget_usd: 0.35

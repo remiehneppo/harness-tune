@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "harness_id": "standard-engineer-v1",
+  "version": "1.0.0",
+  "model_profile": {
+    "provider": "google",
+    "model_name": "gemini-3.8-flash",
+    "tier": "fast_lightweight"
+  },
+  "surfaces": {
+    "system_prompt": "prompts/system.md",
+    "skills": [
+      "skills/self-evolve/SKILL.md"
+    ],
+    "tool_policy": "configs/tools.yaml",
+    "runtime_policy": "configs/runtime.yaml",
+    "memory_policy": "configs/memory.yaml",
+    "verification_policy": "configs/verification.yaml"
+  },
+  "immutable_boundaries": [
+    "secrets/**",
+    "auth/**",
+    "billing/**",
+    "sandbox/**"
+  ]
+}

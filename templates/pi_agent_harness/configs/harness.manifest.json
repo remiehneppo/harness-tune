@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "harness_id": "pi-coding-agent-baseline",
+  "version": "1.0.0",
+  "model_profile": {
+    "provider": "anthropic",
+    "model_name": "claude-3-5-sonnet",
+    "tier": "frontier_reasoning",
+    "context_window": 200000,
+    "temperature": 0.0
+  },
+  "surfaces": {
+    "system_prompt": "prompts/system.md",
+    "skills": [
+      "skills/self-evolve/SKILL.md"
+    ],
+    "tool_policy": "configs/tools.yaml",
+    "runtime_policy": "configs/runtime.yaml",
+    "verification_policy": "configs/verification.yaml"
+  },
+  "immutable_boundaries": [
+    "secrets/**",
+    "auth/**",
+    "billing/**",
+    "sandbox/**"
+  ]
+}

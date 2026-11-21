@@ -1,0 +1,8 @@
+# Pi Coding Agent Verification Policy
+verifier_type: "deterministic"
+non_regression_margin: 0.0
+confidence_level: 0.95
+split_allocation:
+  held_in_ratio: 0.50
+  held_out_ratio: 0.50
+evaluator_isolation: true

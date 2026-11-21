@@ -1,0 +1,13 @@
+# Pi Coding Agent Tool Policy
+# Core default tools: read, write, edit, bash
+core_tools:
+  - read
+  - write
+  - edit
+  - bash
+granularity: "minimal"
+strict_schema_enforcement: true
+error_handling:
+  provide_root_cause: true
+  provide_safe_retry_hint: true
+  max_retry_attempts: 2

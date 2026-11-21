@@ -1,0 +1,9 @@
+# Verification Policy
+verifier_type: "deterministic"   # deterministic | test_suite | llm_adjudicator
+non_regression_margin: 0.0
+confidence_level: 0.95
+audit_split_ratio:
+  held_in: 0.50
+  held_out: 0.30
+  untouched_audit: 0.20
+evaluator_isolation: true        # Optimizer cannot mutate this file

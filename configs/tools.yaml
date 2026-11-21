@@ -1,0 +1,12 @@
+# Tool Policy & Contract
+granularity: "medium"
+strict_schema_enforcement: true
+format_contract:
+  require_status: true          # success | warning | error
+  require_summary: true         # 1-line summary
+  require_next_actions: true    # Actionable recovery instructions
+  require_artifacts: true       # File paths or IDs
+error_handling:
+  provide_root_cause: true
+  provide_safe_retry_hint: true
+  max_retry_attempts: 2
