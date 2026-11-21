@@ -39,7 +39,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--target-model",
         type=str,
         default=None,
-        help="Override target model name (e.g. qwen-2.5-coder-32b, gemini-3.8-flash)",
+        help="Override target model name (e.g. arex-2, qwen-2.5-coder-32b)",
+    )
+    opt_parser.add_argument(
+        "--provider",
+        type=str,
+        default=None,
+        help="Override model provider (e.g. local, anthropic, google)",
     )
     opt_parser.add_argument(
         "--proposer-model",
@@ -83,6 +89,18 @@ def build_parser() -> argparse.ArgumentParser:
         help="Target coding agent (default: pi)",
     )
     bench_parser.add_argument(
+        "--target-model",
+        type=str,
+        default=None,
+        help="Override target model name",
+    )
+    bench_parser.add_argument(
+        "--provider",
+        type=str,
+        default=None,
+        help="Override model provider (e.g. local)",
+    )
+    bench_parser.add_argument(
         "--benchmark",
         type=str,
         default="terminal_bench",
@@ -105,6 +123,8 @@ def main() -> int:
     manifest = HarnessManifest.load(manifest_path)
     if getattr(args, "target_model", None):
         manifest.model_profile.model_name = args.target_model
+    if getattr(args, "provider", None):
+        manifest.model_profile.provider = args.provider
 
     # Instantiate Agent
     agent = PiCodingAgent()

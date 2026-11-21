@@ -28,6 +28,25 @@ class PiCodingAgent(AbstractCodingAgent):
     def __init__(self, pi_executable: str = "pi"):
         self.pi_executable = pi_executable
 
+    @staticmethod
+    def _get_enhanced_env() -> Dict[str, str]:
+        env = os.environ.copy()
+        user_home = Path.home()
+        extra_paths = [
+            str(user_home / ".local" / "bin"),
+            str(user_home / "bin"),
+        ]
+        nvm_node_dir = user_home / ".nvm" / "versions" / "node"
+        if nvm_node_dir.exists():
+            for version_dir in sorted(nvm_node_dir.iterdir(), reverse=True):
+                bin_dir = version_dir / "bin"
+                if bin_dir.exists():
+                    extra_paths.append(str(bin_dir))
+                    break
+        current_path = env.get("PATH", "")
+        env["PATH"] = ":".join(extra_paths) + ":" + current_path
+        return env
+
     def run_task(
         self,
         task_id: str,
@@ -71,25 +90,29 @@ class PiCodingAgent(AbstractCodingAgent):
         max_steps = runtime_config.get("max_steps", 25)
         max_tool_errors = runtime_config.get("max_consecutive_same_tool_errors", 2)
 
-        # 2. Check if pi CLI is available on host
-        has_pi_cli = shutil.which(self.pi_executable) is not None
+        # 2. Check if pi CLI is available in enhanced PATH
+        env = self._get_enhanced_env()
+        pi_bin = shutil.which(self.pi_executable, path=env.get("PATH"))
 
-        if has_pi_cli:
+        if pi_bin:
             # Run real Pi CLI in headless mode
             cmd = [
-                self.pi_executable,
+                pi_bin,
                 "-p", instruction,
                 "--model", harness.model_profile.model_name,
+                "--no-session",
             ]
-            env = os.environ.copy()
+            if harness.model_profile.provider and harness.model_profile.provider not in ("unknown", ""):
+                cmd.extend(["--provider", harness.model_profile.provider])
             if system_prompt_content:
-                env["PI_SYSTEM_PROMPT"] = system_prompt_content
+                cmd.extend(["--system-prompt", system_prompt_content])
 
             try:
                 proc = subprocess.run(
                     cmd,
                     cwd=str(ws),
                     env=env,
+                    stdin=subprocess.DEVNULL,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     text=True,
@@ -105,7 +128,7 @@ class PiCodingAgent(AbstractCodingAgent):
                         tool_calls=[
                             ToolCallRecord(
                                 tool_name="bash",
-                                arguments={"command": "pi -p ..."},
+                                arguments={"command": " ".join(cmd)},
                                 output=stdout or stderr,
                                 status="success" if proc.returncode == 0 else "error",
                             )
