@@ -1,0 +1,7 @@
+# Full User-Default Runtime Policy
+use_user_profile: true
+thinking_level: "high"
+max_steps: 0
+early_stop_on_repeated_failure: false
+max_consecutive_same_tool_errors: 5
+timeout_per_step_seconds: 120

@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import List, Dict, Any
+from typing import List, Dict
 from harness_tune.core.trace import ExecutionTrace
+from harness_tune.core.fault_localizer import extract_verifier_signal
 
 
 @dataclass
@@ -35,6 +36,11 @@ class EvidenceBundle:
                 f"- [{c.cluster_id}] {c.pattern_name} (Count: {c.frequency}) -> Surface: {c.suggested_surface}"
             )
             lines.append(f"  Cause: {c.inferred_cause}")
+            if c.affected_tasks:
+                lines.append(f"  Affected Tasks: {', '.join(c.affected_tasks)}")
+            if c.sample_errors:
+                samples = " | ".join(err.replace("\n", " ")[:180] for err in c.sample_errors[:3])
+                lines.append(f"  Sample Errors: {samples}")
         return "\n".join(lines)
 
 
@@ -50,7 +56,29 @@ class FailureMiner:
         clusters: Dict[str, FailureCluster] = {}
 
         for t in failed_traces:
-            # 1. Check repeated tool error streak
+            err_lower = (t.error_summary or "").lower()
+
+            # 1. Check timeout failures
+            if "timed out" in err_lower or "timeout" in err_lower:
+                cid = "FC_TIMEOUT"
+                if cid not in clusters:
+                    clusters[cid] = FailureCluster(
+                        cluster_id=cid,
+                        pattern_name="Execution Timeout",
+                        frequency=0,
+                        affected_tasks=[],
+                        symptoms=["Agent exceeded per-task execution timeout before finishing"],
+                        sample_errors=[],
+                        inferred_cause="Excessive reasoning/exploration steps or hanging command",
+                        suggested_surface="runtime_policy",
+                    )
+                clusters[cid].frequency += 1
+                if t.task_id not in clusters[cid].affected_tasks:
+                    clusters[cid].affected_tasks.append(t.task_id)
+                if t.error_summary and len(clusters[cid].sample_errors) < 3:
+                    clusters[cid].sample_errors.append(t.error_summary[:180])
+
+            # 2. Check repeated tool error streak
             streak = t.detect_consecutive_same_errors()
             if streak >= 2:
                 cid = "FC_TOOL_LOOP"
@@ -66,9 +94,12 @@ class FailureMiner:
                         suggested_surface="runtime_policy",
                     )
                 clusters[cid].frequency += 1
-                clusters[cid].affected_tasks.append(t.task_id)
+                if t.task_id not in clusters[cid].affected_tasks:
+                    clusters[cid].affected_tasks.append(t.task_id)
+                if t.failed_tool_calls and len(clusters[cid].sample_errors) < 3:
+                    clusters[cid].sample_errors.append(t.failed_tool_calls[-1].output[:180])
 
-            # 2. Check bash syntax / missing dependency
+            # 3. Check bash syntax / missing dependency
             for tc in t.failed_tool_calls:
                 err = tc.output.lower()
                 if "command not found" in err or "no such file or directory" in err:
@@ -88,7 +119,7 @@ class FailureMiner:
                     if t.task_id not in clusters[cid].affected_tasks:
                         clusters[cid].affected_tasks.append(t.task_id)
                     if len(clusters[cid].sample_errors) < 3:
-                        clusters[cid].sample_errors.append(tc.output[:150])
+                        clusters[cid].sample_errors.append(tc.output[:180])
 
                 elif "syntaxerror" in err or "invalid syntax" in err:
                     cid = "FC_SYNTAX_ERROR"
@@ -107,10 +138,10 @@ class FailureMiner:
                     if t.task_id not in clusters[cid].affected_tasks:
                         clusters[cid].affected_tasks.append(t.task_id)
                     if len(clusters[cid].sample_errors) < 3:
-                        clusters[cid].sample_errors.append(tc.output[:150])
+                        clusters[cid].sample_errors.append(tc.output[:180])
 
-            # 3. Check step exhaustion
-            if len(t.steps) >= 25 and not t.passed:
+            # 4. Check step exhaustion
+            if len(t.steps) >= 25 or "max_steps" in err_lower:
                 cid = "FC_STEP_EXHAUSTION"
                 if cid not in clusters:
                     clusters[cid] = FailureCluster(
@@ -127,7 +158,7 @@ class FailureMiner:
                 if t.task_id not in clusters[cid].affected_tasks:
                     clusters[cid].affected_tasks.append(t.task_id)
 
-            # 4. Default unclassified cluster if none matched
+            # 5. Default unclassified cluster if none matched
             if not any(t.task_id in c.affected_tasks for c in clusters.values()):
                 cid = "FC_GENERAL_LOGIC"
                 if cid not in clusters:
@@ -137,12 +168,16 @@ class FailureMiner:
                         frequency=0,
                         affected_tasks=[],
                         symptoms=[t.error_summary or "Verifier test assertion failed"],
-                        sample_errors=[(t.verifier_output or "")[:150]],
+                        sample_errors=[],
                         inferred_cause="Agent output failed grader criteria",
                         suggested_surface="system_prompt",
                     )
                 clusters[cid].frequency += 1
                 clusters[cid].affected_tasks.append(t.task_id)
+                clean_ver = extract_verifier_signal(t.verifier_output, max_chars=180)
+                sample = (clean_ver or t.error_summary or "").strip()
+                if sample and len(clusters[cid].sample_errors) < 3:
+                    clusters[cid].sample_errors.append(sample[:180])
 
         return EvidenceBundle(
             total_runs=total,

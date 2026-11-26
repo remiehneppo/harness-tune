@@ -18,3 +18,5 @@ ENV/
 *~
 benchmark_eval_tmp/
 optimized_*/
+datasets/
+tb2_*/

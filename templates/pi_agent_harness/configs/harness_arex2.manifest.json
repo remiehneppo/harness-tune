@@ -6,8 +6,9 @@
     "provider": "local",
     "model_name": "arex-2",
     "tier": "local_open_source",
-    "context_window": 32768,
-    "temperature": 0.0
+    "context_window": 262144,
+    "temperature": 0.0,
+    "thinking_level": "medium"
   },
   "surfaces": {
     "system_prompt": "prompts/system.md",

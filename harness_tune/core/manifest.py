@@ -15,6 +15,7 @@ class ModelProfile:
     tier: str = "general"
     context_window: int = 128000
     temperature: float = 0.0
+    thinking_level: Optional[str] = None
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> ModelProfile:
@@ -24,16 +25,20 @@ class ModelProfile:
             tier=data.get("tier", "general"),
             context_window=data.get("context_window", 128000),
             temperature=data.get("temperature", 0.0),
+            thinking_level=data.get("thinking_level"),
         )
 
     def to_dict(self) -> Dict[str, Any]:
-        return {
+        payload: Dict[str, Any] = {
             "provider": self.provider,
             "model_name": self.model_name,
             "tier": self.tier,
             "context_window": self.context_window,
             "temperature": self.temperature,
         }
+        if self.thinking_level is not None:
+            payload["thinking_level"] = self.thinking_level
+        return payload
 
 
 @dataclass
@@ -46,6 +51,7 @@ class HarnessManifest:
         default_factory=lambda: ["secrets/**", "auth/**", "billing/**", "sandbox/**"]
     )
     base_dir: Optional[Path] = None
+    manifest_rel_path: Optional[str] = None
 
     ALLOWED_SURFACES = {
         "system_prompt",
@@ -55,6 +61,38 @@ class HarnessManifest:
         "memory_policy",
         "verification_policy",
     }
+
+    @classmethod
+    def _iter_surface_paths(cls, surfaces: Dict[str, Any]) -> List[str]:
+        paths: List[str] = []
+        for val in surfaces.values():
+            if isinstance(val, str):
+                paths.append(val)
+            elif isinstance(val, list):
+                for item in val:
+                    if isinstance(item, str):
+                        paths.append(item)
+            elif isinstance(val, dict) and isinstance(val.get("path"), str):
+                paths.append(val["path"])
+        return paths
+
+    @classmethod
+    def _resolve_base_dir(cls, path: Path, surfaces: Dict[str, Any]) -> tuple[Path, str]:
+        parent = path.parent
+        if parent.name == "configs":
+            grandparent = parent.parent
+            surface_paths = cls._iter_surface_paths(surfaces)
+            has_prefixed_surface = any(
+                s.replace("\\", "/").lstrip("./").startswith(("configs/", "prompts/", "skills/"))
+                for s in surface_paths
+            )
+            exists_under_grandparent = any(
+                (grandparent / s).exists() and not (parent / s).exists()
+                for s in surface_paths
+            )
+            if exists_under_grandparent or has_prefixed_surface:
+                return grandparent, f"configs/{path.name}"
+        return parent, path.name
 
     @classmethod
     def load(cls, manifest_path: Path | str) -> HarnessManifest:
@@ -72,6 +110,8 @@ class HarnessManifest:
                     f"Invalid surface '{surface_name}'. Allowed: {sorted(cls.ALLOWED_SURFACES)}"
                 )
 
+        base_dir, manifest_rel_path = cls._resolve_base_dir(path, surfaces)
+
         return cls(
             harness_id=data["harness_id"],
             version=data.get("version", "1.0.0"),
@@ -81,11 +121,18 @@ class HarnessManifest:
                 "immutable_boundaries",
                 ["secrets/**", "auth/**", "billing/**", "sandbox/**"],
             ),
-            base_dir=path.parent,
+            base_dir=base_dir,
+            manifest_rel_path=manifest_rel_path,
         )
 
     def is_protected(self, file_path: str) -> bool:
-        normalized = file_path.replace("\\", "/").lstrip("./")
+        raw = file_path.replace("\\", "/")
+        if raw.startswith("/") or Path(file_path).is_absolute():
+            return True
+        parts = [p for p in raw.split("/") if p and p != "."]
+        if ".." in parts:
+            return True
+        normalized = "/".join(parts)
         for pattern in self.immutable_boundaries:
             if fnmatch.fnmatch(normalized, pattern) or fnmatch.fnmatch(normalized, f"*/{pattern}"):
                 return True

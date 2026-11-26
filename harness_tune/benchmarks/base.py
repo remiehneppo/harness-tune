@@ -16,6 +16,9 @@ class BenchmarkTask:
     instruction: str
     workspace_template: Optional[str] = None
     verification_script: Optional[str] = None
+    setup_files: Dict[str, str] = field(default_factory=dict)
+    setup_script: Optional[str] = None
+    timeout_sec: int = 180
     metadata: Dict[str, Any] = field(default_factory=dict)
 
 

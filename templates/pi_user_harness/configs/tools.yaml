@@ -1,0 +1,4 @@
+# Full User-Default Tool Policy (built-in + extension tools enabled)
+use_default_tools: true
+granularity: "default"
+strict_schema_enforcement: true
